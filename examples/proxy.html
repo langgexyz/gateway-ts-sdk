@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stream Gateway SDK - HTTP Proxy Example</title>
+    <script src="../config/environments.js"></script>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .section {
+            margin-bottom: 30px;
+            padding: 20px;
+            border: 1px solid #e0e0e0;
+            border-radius: 6px;
+        }
+        .section h3 {
+            margin-top: 0;
+            color: #555;
+            border-bottom: 2px solid #007bff;
+            padding-bottom: 10px;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 500;
+            color: #555;
+        }
+        input, select, textarea {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+            box-sizing: border-box;
+        }
+        textarea {
+            height: 100px;
+            resize: vertical;
+            font-family: 'Courier New', monospace;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            margin-right: 10px;
+            margin-bottom: 10px;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        button:disabled {
+            background: #6c757d;
+            cursor: not-allowed;
+        }
+        .status {
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        .status.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .status.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .status.info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+        .response {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 4px;
+            border-left: 4px solid #007bff;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            white-space: pre-wrap;
+            word-break: break-all;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        .grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+        @media (max-width: 768px) {
+            .grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔄 Stream Gateway SDK - HTTP Proxy Test</h1>
+        
+        <div style="background: #e7f3ff; border: 1px solid #b3d9ff; border-radius: 6px; padding: 15px; margin-bottom: 20px;">
+            <strong>🌐 Usage:</strong> Start local server with <code>npm run serve</code> and open <code>http://localhost:8080/examples/proxy.html</code> to test real SDK functionality.
+        </div>
+        
+        <!-- Connection Section -->
+        <div class="section">
+            <h3>📡 Connection</h3>
+            <div class="form-group">
+                <label for="wsUrl">WebSocket URL:</label>
+                <div style="display: flex; gap: 10px;">
+                    <select id="wsUrlSelect" onchange="updateWsUrl()" style="width: 200px;">
+                        <!-- 环境选项将由 JavaScript 动态生成 -->
+                    </select>
+                    <input type="text" id="wsUrl" value="ws://localhost:18443" placeholder="ws://localhost:18443" style="flex: 1;">
+                </div>
+            </div>
+            <button onclick="connect()">Connect</button>
+            <button onclick="disconnect()">Disconnect</button>
+            <button onclick="testPing()">Ping Test</button>
+            <div id="connectionStatus"></div>
+        </div>
+
+        <!-- Proxy Test Section -->
+        <div class="grid">
+            <div class="section">
+                <h3>🌐 HTTP Proxy Request</h3>
+                
+
+
+                <div class="form-group">
+                    <label for="proxyUrl">Target URL:</label>
+                    <input type="text" id="proxyUrl" value="http://localhost:8080/api/test" placeholder="http://localhost:8080/api/test">
+                </div>
+
+                <div class="form-group">
+                    <label for="proxyMethod">HTTP Method:</label>
+                    <select id="proxyMethod">
+                        <option value="GET">GET</option>
+                        <option value="POST">POST</option>
+                        <option value="PUT">PUT</option>
+                        <option value="DELETE">DELETE</option>
+                        <option value="PATCH">PATCH</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="requestBody">Request Body (JSON):</label>
+                    <textarea id="requestBody" placeholder='{"title": "Test Post", "body": "Test content", "userId": 1}'></textarea>
+                </div>
+
+                <button onclick="sendProxyRequest()">Send Proxy Request</button>
+                <div id="proxyStatus"></div>
+            </div>
+
+            <div class="section">
+                <h3>📄 Response</h3>
+                <div id="proxyResponse" class="response">Response will appear here...</div>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        // 导入真实的SDK
+        import { createClient } from '../dist/index.mjs';
+        
+        let client = null;
+
+        // Status display functions
+        function showStatus(elementId, message, type = 'info') {
+            const element = document.getElementById(elementId);
+            element.innerHTML = `<div class="status ${type}">${message}</div>`;
+        }
+
+        function showResponse(data) {
+            const element = document.getElementById('proxyResponse');
+            
+            // 处理不同类型的响应数据
+            if (typeof data === 'string') {
+                // 如果是字符串，尝试解析为JSON
+                try {
+                    const parsed = JSON.parse(data);
+                    element.textContent = JSON.stringify(parsed, null, 2);
+                } catch (e) {
+                    // 如果不是JSON，直接显示字符串
+                    element.textContent = data;
+                }
+            } else if (data && typeof data === 'object') {
+                // 如果是对象，格式化显示完整内容
+                element.textContent = JSON.stringify(data, null, 2);
+                
+                // 额外处理：如果对象有特定字段，显示更友好的格式
+                if (data.code !== undefined || data.message !== undefined) {
+                    let friendlyText = JSON.stringify(data, null, 2);
+                    friendlyText += '\n\n--- 友好格式 ---\n';
+                    if (data.code !== undefined) friendlyText += `状态码: ${data.code}\n`;
+                    if (data.message) friendlyText += `消息: ${data.message}\n`;
+                    if (data.messageEn) friendlyText += `英文消息: ${data.messageEn}\n`;
+                    if (data.data) friendlyText += `数据: ${data.data}\n`;
+                    element.textContent = friendlyText;
+                }
+            } else {
+                // 其他类型直接转换为字符串
+                element.textContent = String(data);
+            }
+        }
+
+        // Connection functions
+        async function connect() {
+            try {
+                const wsUrl = document.getElementById('wsUrl').value;
+                if (!wsUrl) {
+                    showStatus('connectionStatus', 'Please enter WebSocket URL', 'error');
+                    return;
+                }
+
+                showStatus('connectionStatus', 'Connecting...', 'info');
+                client = createClient(wsUrl);
+                showStatus('connectionStatus', '✅ Connected successfully', 'success');
+            } catch (error) {
+                showStatus('connectionStatus', `❌ Connection failed: ${error.message}`, 'error');
+                console.error('Connection error:', error);
+            }
+        }
+
+        async function disconnect() {
+            if (client) {
+                try {
+                    // Note: Add disconnect method if available in SDK
+                    client = null;
+                    showStatus('connectionStatus', '🔌 Disconnected', 'info');
+                } catch (error) {
+                    showStatus('connectionStatus', `❌ Disconnect error: ${error.message}`, 'error');
+                }
+            }
+        }
+
+        async function testPing() {
+            if (!client) {
+                showStatus('connectionStatus', '❌ Not connected', 'error');
+                return;
+            }
+
+            try {
+                showStatus('connectionStatus', 'Pinging...', 'info');
+                const result = await client.ping();
+                showStatus('connectionStatus', `✅ Ping successful: ${JSON.stringify(result)}`, 'success');
+            } catch (error) {
+                showStatus('connectionStatus', `❌ Ping failed: ${error.message}`, 'error');
+            }
+        }
+
+        // Proxy request function
+        async function sendProxyRequest() {
+            if (!client) {
+                showStatus('proxyStatus', '❌ Not connected', 'error');
+                return;
+            }
+
+            try {
+                const url = document.getElementById('proxyUrl').value;
+                const method = document.getElementById('proxyMethod').value;
+                const bodyText = document.getElementById('requestBody').value;
+
+                if (!url) {
+                    showStatus('proxyStatus', '❌ Please enter target URL', 'error');
+                    return;
+                }
+
+                showStatus('proxyStatus', `Sending ${method} request to ${url}...`, 'info');
+
+                // Prepare headers
+                const headers = new Map();
+                headers.set('x-proxy-url', url);
+                headers.set('x-proxy-method', method);
+
+                // Prepare request body
+                let requestData = {};
+                if (bodyText.trim()) {
+                    try {
+                        requestData = JSON.parse(bodyText);
+                    } catch (e) {
+                        showStatus('proxyStatus', '❌ Invalid JSON in request body', 'error');
+                        return;
+                    }
+                }
+
+                // Define a response type that matches the actual proxy server response
+                class ProxyResponse {
+                    constructor() {
+                        this.code = 0;
+                        this.message = '';
+                        this.messageEn = '';
+                        this.data = ''; // 某些响应可能包含 data 字段
+                    }
+                }
+
+                // Send proxy request
+                const response = await client.send('API/Proxy', requestData, ProxyResponse, headers);
+                
+                showStatus('proxyStatus', `✅ Request successful (${method} ${url})`, 'success');
+                showResponse(response);
+
+            } catch (error) {
+                showStatus('proxyStatus', `❌ Request failed: ${error.message}`, 'error');
+                showResponse({ error: error.message });
+                console.error('Proxy request error:', error);
+            }
+        }
+
+        // WebSocket URL 选择器处理
+        function updateWsUrl() {
+            const select = document.getElementById('wsUrlSelect');
+            const input = document.getElementById('wsUrl');
+            
+            if (select.value === 'custom') {
+                input.disabled = false;
+                input.focus();
+            } else {
+                input.disabled = true;
+                input.value = select.value;
+            }
+        }
+
+        // 将函数绑定到全局window对象，使HTML可以访问
+        window.connect = connect;
+        window.disconnect = disconnect;
+        window.testPing = testPing;
+        window.sendProxyRequest = sendProxyRequest;
+        window.updateWsUrl = updateWsUrl;
+
+        // Auto-connect on page load
+        window.addEventListener('load', () => {
+            // 初始化 URL 输入框状态
+            updateWsUrl();
+            
+            // Auto-connect if URL is provided
+            const wsUrl = document.getElementById('wsUrl').value;
+            if (wsUrl) {
+                connect();
+            }
+        });
+    </script>
+</body>
+</html>

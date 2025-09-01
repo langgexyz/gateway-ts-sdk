@@ -1,0 +1,710 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stream Gateway SDK - Browser Example</title>
+    <script src="../config/environments.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .status {
+            padding: 12px;
+            margin: 15px 0;
+            border-radius: 6px;
+            font-weight: bold;
+            text-align: center;
+        }
+        .status.success { background-color: #d4edda; color: #155724; }
+        .status.error { background-color: #f8d7da; color: #721c24; }
+        .status.info { background-color: #d1ecf1; color: #0c5460; }
+        .status.warning { background-color: #fff3cd; color: #856404; }
+        
+        .section {
+            margin: 25px 0;
+            padding: 20px;
+            border: 1px solid #e9ecef;
+            border-radius: 6px;
+        }
+        .section h2 {
+            margin-top: 0;
+            color: #495057;
+        }
+        
+        .input-group {
+            margin: 15px 0;
+        }
+        .input-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+            color: #495057;
+        }
+        input {
+            padding: 10px;
+            border: 1px solid #ced4da;
+            border-radius: 4px;
+            width: 300px;
+            font-size: 14px;
+        }
+        button {
+            padding: 10px 20px;
+            margin: 5px;
+            border: none;
+            border-radius: 4px;
+            background-color: #007bff;
+            color: white;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background-color 0.2s;
+        }
+        button:hover { background-color: #0056b3; }
+        button:disabled { 
+            background-color: #6c757d; 
+            cursor: not-allowed; 
+        }
+        button.danger {
+            background-color: #dc3545;
+        }
+        button.danger:hover {
+            background-color: #c82333;
+        }
+        
+        .ping-results {
+            background-color: #f8f9fa;
+            border: 1px solid #e9ecef;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 4px;
+            font-family: monospace;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        .ping-result {
+            margin: 5px 0;
+            padding: 5px;
+        }
+        .ping-result.success { color: #28a745; }
+        .ping-result.error { color: #dc3545; }
+        
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+        .stat-item {
+            text-align: center;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 6px;
+        }
+        .stat-value {
+            font-size: 24px;
+            font-weight: bold;
+            color: #007bff;
+        }
+        .stat-label {
+            color: #6c757d;
+            font-size: 12px;
+        }
+        
+        /* Toast 样式 */
+        .toast-container {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 9999;
+        }
+        .toast {
+            min-width: 300px;
+            margin-bottom: 10px;
+            padding: 12px 20px;
+            border-radius: 6px;
+            color: white;
+            font-weight: bold;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            transform: translateX(400px);
+            transition: transform 0.3s ease-in-out;
+        }
+        .toast.show {
+            transform: translateX(0);
+        }
+        .toast.success { background-color: #28a745; }
+        .toast.error { background-color: #dc3545; }
+        .toast.info { background-color: #17a2b8; }
+        .toast.warning { background-color: #ffc107; color: #212529; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🏓 Stream Gateway SDK - Browser Ping Test</h1>
+        
+        <div style="background: #e7f3ff; border: 1px solid #b3d9ff; border-radius: 6px; padding: 15px; margin-bottom: 20px;">
+            <strong>🌐 Usage:</strong> Start local server with <code>npm run serve</code> and open <code>http://localhost:8080/examples/browser.html</code> to test real SDK functionality.
+        </div>
+        
+        <div class="status info" id="sdkStatus">
+            <strong>SDK状态:</strong> 加载中...
+        </div>
+
+        <div class="section">
+            <h2>📡 连接配置</h2>
+            <div class="input-group">
+                <label for="wsUrl">WebSocket URL:</label>
+                <div style="display: flex; gap: 10px;">
+                                    <select id="wsUrlSelect" onchange="updateWsUrl()" style="width: 200px;">
+                    <!-- 环境选项将由 JavaScript 动态生成 -->
+                </select>
+                    <input type="text" id="wsUrl" value="ws://localhost:18443" placeholder="ws://localhost:18443" style="flex: 1;">
+                </div>
+            </div>
+            <button onclick="initializeClient()">初始化客户端</button>
+        </div>
+
+        <div class="section">
+            <h2>🏓 Ping 测试</h2>
+            <div style="margin-bottom: 15px;">
+                <button onclick="singlePing()" id="singlePingBtn">单次 Ping</button>
+                <button onclick="startContinuousPing()" id="startPingBtn">开始连续 Ping</button>
+                <button onclick="stopContinuousPing()" id="stopPingBtn" disabled>停止 Ping</button>
+                <button onclick="clearResults()" class="danger">清空结果</button>
+            </div>
+            
+            <div class="stats">
+                <div class="stat-item">
+                    <div class="stat-value" id="totalPings">0</div>
+                    <div class="stat-label">总请求数</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value" id="successPings">0</div>
+                    <div class="stat-label">成功次数</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value" id="failedPings">0</div>
+                    <div class="stat-label">失败次数</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value" id="avgLatency">0ms</div>
+                    <div class="stat-label">平均延迟</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>📊 Ping 结果</h2>
+            <div id="pingResults" class="ping-results">等待ping测试...</div>
+        </div>
+
+        <div class="section">
+            <h2>📡 订阅测试</h2>
+            <div class="input-group">
+                <label for="channelName">频道名称:</label>
+                <input type="text" id="channelName" value="demo-channel" placeholder="demo-channel">
+            </div>
+            <div class="input-group">
+                <label for="messageContent">发布内容:</label>
+                <input type="text" id="messageContent" value="" placeholder="输入要发布的消息内容..." onkeypress="handleMessageKeyPress(event)">
+            </div>
+            <div class="input-group">
+                <label for="customReqId">自定义 X-Req-Id (可选):</label>
+                <input type="text" id="customReqId" value="" placeholder="留空使用自动生成的ID...">
+            </div>
+            <div style="margin-bottom: 15px;">
+                <button onclick="subscribeChannel()" id="subscribeBtn">订阅频道</button>
+                <button onclick="unsubscribeChannel()" id="unsubscribeBtn" disabled>取消订阅</button>
+                <button onclick="publishMessage()" id="publishBtn" disabled>发布消息</button>
+                <button onclick="testReqIdTracing()" id="testReqIdBtn" disabled>🔍 测试 X-Req-Id 追踪</button>
+                <button onclick="clearMessages()" class="danger">清空消息</button>
+            </div>
+            
+            <div class="stats">
+                <div class="stat-item">
+                    <div class="stat-value" id="totalMessages">0</div>
+                    <div class="stat-label">总消息数</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value" id="publishedMessages">0</div>
+                    <div class="stat-label">发布消息数</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value" id="receivedMessagesCount">0</div>
+                    <div class="stat-label">接收消息数</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>📨 接收到的消息</h2>
+            <div id="receivedMessages" class="ping-results">暂无消息...</div>
+        </div>
+    </div>
+
+    <!-- Toast 容器 -->
+    <div class="toast-container" id="toastContainer"></div>
+
+    <script type="module">
+        // 导入真实的SDK
+        import { createClient } from '../dist/index.mjs';
+        
+        // SDK状态
+        let client = null;
+        let pingInterval = null;
+        let pingStats = {
+            total: 0,
+            success: 0,
+            failed: 0,
+            latencies: []
+        };
+        
+        // 订阅状态
+        let isSubscribed = false;
+        let currentChannel = null;
+        let messageStats = {
+            total: 0,
+            published: 0,
+            received: 0
+        };
+
+        // WebSocket URL 选择器处理
+        window.updateWsUrl = function() {
+            const select = document.getElementById('wsUrlSelect');
+            const input = document.getElementById('wsUrl');
+            
+            if (select.value === 'custom') {
+                input.disabled = false;
+                input.focus();
+            } else {
+                input.disabled = true;
+                input.value = select.value;
+            }
+        };
+
+        // 动态生成环境选项
+        function initializeEnvironments() {
+            const select = document.getElementById('wsUrlSelect');
+            const config = window.EnvironmentConfig;
+            
+            // 清空现有选项
+            select.innerHTML = '';
+            
+            // 添加环境选项
+            Object.keys(config.environments).forEach(envKey => {
+                const env = config.environments[envKey];
+                const option = document.createElement('option');
+                option.value = env.wsUrl;
+                option.textContent = `${env.icon} ${env.name} (${env.wsUrl})`;
+                select.appendChild(option);
+            });
+            
+            // 添加自定义选项
+            const customOption = document.createElement('option');
+            customOption.value = 'custom';
+            customOption.textContent = '🔧 自定义...';
+            select.appendChild(customOption);
+            
+            // 设置默认环境
+            const currentEnv = config.getEnvironmentFromContext();
+            const defaultUrl = config.getEnvironment(currentEnv).wsUrl;
+            select.value = defaultUrl;
+            document.getElementById('wsUrl').value = defaultUrl;
+        };
+
+        // 初始化页面
+        document.addEventListener('DOMContentLoaded', function() {
+            // 初始化环境配置
+            initializeEnvironments();
+            // 初始化 URL 输入框状态
+            updateWsUrl();
+            
+            updateSDKStatus('info', 'SDK已加载，等待初始化客户端');
+            log('🌐 浏览器Ping测试页面已加载');
+            log('💡 提示：使用测试服务器 ws://localhost:18443');
+            log('✅ 真实SDK已导入，可以进行实际测试');
+        });
+
+        // 初始化客户端
+        window.initializeClient = function() {
+            try {
+                const wsUrl = document.getElementById('wsUrl').value;
+                if (!wsUrl) {
+                    updateSDKStatus('error', '请输入有效的WebSocket URL');
+                    showToast('error', '请输入有效的WebSocket URL');
+                    return;
+                }
+
+                log(`🔗 正在初始化客户端: ${wsUrl}`);
+                
+                // 使用真实的SDK
+                client = createClient(wsUrl);
+                
+                updateSDKStatus('success', '客户端初始化成功');
+                showToast('success', '✅ 客户端初始化成功');
+                log('✅ 客户端初始化成功');
+                
+            } catch (error) {
+                updateSDKStatus('error', `初始化失败: ${error.message}`);
+                showToast('error', `❌ 初始化失败: ${error.message}`);
+                log(`❌ 初始化失败: ${error.message}`);
+            }
+        };
+
+        // 单次ping
+        window.singlePing = async function() {
+            if (!client) {
+                log('❌ 请先初始化客户端');
+                return;
+            }
+
+            const startTime = Date.now();
+            
+            try {
+                log('🏓 发送ping请求...');
+                const result = await client.ping();
+                const latency = Date.now() - startTime;
+                
+                pingStats.total++;
+                pingStats.success++;
+                pingStats.latencies.push(latency);
+                
+                logPingResult('success', `Ping成功 - 延迟: ${latency}ms`);
+                updateStats();
+                
+            } catch (error) {
+                const latency = Date.now() - startTime;
+                pingStats.total++;
+                pingStats.failed++;
+                
+                logPingResult('error', `Ping失败 - ${error.message} (${latency}ms)`);
+                updateStats();
+            }
+        };
+
+        // 开始连续ping
+        window.startContinuousPing = function() {
+            if (!client) {
+                log('❌ 请先初始化客户端');
+                return;
+            }
+
+            if (pingInterval) {
+                log('⚠️ 连续ping已在运行');
+                return;
+            }
+
+            log('🔄 开始连续ping测试 (每2秒一次)...');
+            document.getElementById('startPingBtn').disabled = true;
+            document.getElementById('stopPingBtn').disabled = false;
+            
+            pingInterval = setInterval(async () => {
+                await window.singlePing();
+            }, 2000);
+        };
+
+        // 停止连续ping
+        window.stopContinuousPing = function() {
+            if (pingInterval) {
+                clearInterval(pingInterval);
+                pingInterval = null;
+                
+                document.getElementById('startPingBtn').disabled = false;
+                document.getElementById('stopPingBtn').disabled = true;
+                
+                log('⏹️ 连续ping测试已停止');
+            }
+        };
+
+        // 清空结果
+        window.clearResults = function() {
+            pingStats = {
+                total: 0,
+                success: 0,
+                failed: 0,
+                latencies: []
+            };
+            
+            document.getElementById('pingResults').innerHTML = '等待ping测试...';
+            updateStats();
+            log('🧹 结果已清空');
+        };
+
+        // 显示 Toast 通知
+        function showToast(type, message, duration = 3000) {
+            const container = document.getElementById('toastContainer');
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            toast.textContent = message;
+            
+            container.appendChild(toast);
+            
+            // 触发动画
+            setTimeout(() => {
+                toast.classList.add('show');
+            }, 10);
+            
+            // 自动移除
+            setTimeout(() => {
+                toast.classList.remove('show');
+                setTimeout(() => {
+                    if (container.contains(toast)) {
+                        container.removeChild(toast);
+                    }
+                }, 300);
+            }, duration);
+        }
+
+        // 更新SDK状态
+        function updateSDKStatus(type, text) {
+            const statusEl = document.getElementById('sdkStatus');
+            statusEl.className = `status ${type}`;
+            statusEl.innerHTML = `<strong>SDK状态:</strong> ${text}`;
+        }
+
+        // 添加日志
+        function log(message) {
+            const resultsEl = document.getElementById('pingResults');
+            const timestamp = new Date().toLocaleTimeString();
+            const div = document.createElement('div');
+            div.style.marginBottom = '2px';
+            div.innerHTML = `[${timestamp}] ${message}`;
+            resultsEl.appendChild(div);
+            resultsEl.scrollTop = resultsEl.scrollHeight;
+        }
+
+        // 添加ping结果
+        function logPingResult(type, message) {
+            const resultsEl = document.getElementById('pingResults');
+            const timestamp = new Date().toLocaleTimeString();
+            const div = document.createElement('div');
+            div.className = `ping-result ${type}`;
+            div.textContent = `[${timestamp}] ${message}`;
+            resultsEl.appendChild(div);
+            resultsEl.scrollTop = resultsEl.scrollHeight;
+        }
+
+        // 更新统计信息
+        function updateStats() {
+            document.getElementById('totalPings').textContent = pingStats.total;
+            document.getElementById('successPings').textContent = pingStats.success;
+            document.getElementById('failedPings').textContent = pingStats.failed;
+            
+            if (pingStats.latencies.length > 0) {
+                const avgLatency = Math.round(
+                    pingStats.latencies.reduce((a, b) => a + b, 0) / pingStats.latencies.length
+                );
+                document.getElementById('avgLatency').textContent = `${avgLatency}ms`;
+            } else {
+                document.getElementById('avgLatency').textContent = '0ms';
+            }
+        }
+
+        // 更新消息统计信息
+        function updateMessageStats() {
+            document.getElementById('totalMessages').textContent = messageStats.total;
+            document.getElementById('publishedMessages').textContent = messageStats.published;
+            document.getElementById('receivedMessagesCount').textContent = messageStats.received;
+        }
+
+
+
+        // 显示接收到的消息
+        function showReceivedMessage(cmd, data, header) {
+            const resultsEl = document.getElementById('receivedMessages');
+            const div = document.createElement('div');
+            div.style.marginBottom = '8px';
+            div.style.padding = '8px';
+            div.style.border = '1px solid #28a745';
+            div.style.borderRadius = '4px';
+            div.style.backgroundColor = '#f8fff8';
+            
+            const timestamp = new Date().toLocaleTimeString();
+            const reqId = header.get('X-Req-Id') || '未知';
+            
+            div.innerHTML = `
+                <div style="font-size: 12px; color: #666; margin-bottom: 4px;">
+                    [${timestamp}] 频道: ${cmd} | reqId: ${reqId}
+                </div>
+                <div style="font-weight: bold; color: #333;">
+                    ${data}
+                </div>
+            `;
+            
+            resultsEl.appendChild(div);
+            resultsEl.scrollTop = resultsEl.scrollHeight;
+        }
+
+        // 订阅频道
+        window.subscribeChannel = async function() {
+            if (!client) {
+                showToast('error', '❌ 请先初始化客户端');
+                return;
+            }
+
+            const channelName = document.getElementById('channelName').value;
+            if (!channelName) {
+                showToast('error', '❌ 请输入频道名称');
+                return;
+            }
+
+            try {
+                // 订阅时传入回调函数
+                await client.subscribe(channelName, (cmd, data, header) => {
+                    messageStats.received++;
+                    messageStats.total++;
+                    
+                    // 在消息区域显示接收到的内容
+                    showReceivedMessage(cmd, data, header);
+                    updateMessageStats();
+                });
+                
+                isSubscribed = true;
+                currentChannel = channelName;
+                
+                document.getElementById('subscribeBtn').disabled = true;
+                document.getElementById('unsubscribeBtn').disabled = false;
+                document.getElementById('publishBtn').disabled = false;
+                document.getElementById('testReqIdBtn').disabled = false;
+                
+                showToast('success', `✅ 成功订阅频道: ${channelName}`);
+                
+            } catch (error) {
+                showToast('error', `❌ 订阅失败: ${error.message}`);
+            }
+        };
+
+        // 取消订阅
+        window.unsubscribeChannel = async function() {
+            if (!client || !currentChannel) {
+                showToast('error', '❌ 没有活跃的订阅');
+                return;
+            }
+
+            try {
+                await client.unsubscribe(currentChannel);
+                
+                isSubscribed = false;
+                const oldChannel = currentChannel;
+                currentChannel = null;
+                
+                document.getElementById('subscribeBtn').disabled = false;
+                document.getElementById('unsubscribeBtn').disabled = true;
+                document.getElementById('publishBtn').disabled = true;
+                document.getElementById('testReqIdBtn').disabled = true;
+                
+                showToast('success', `✅ 成功取消订阅频道: ${oldChannel}`);
+                
+            } catch (error) {
+                showToast('error', `❌ 取消订阅失败: ${error.message}`);
+            }
+        };
+
+        // 发布消息
+        window.publishMessage = async function() {
+            if (!client || !currentChannel) {
+                showToast('error', '❌ 请先订阅频道');
+                return;
+            }
+
+            const messageContent = document.getElementById('messageContent').value.trim();
+            if (!messageContent) {
+                showToast('error', '❌ 请输入发布内容');
+                return;
+            }
+
+            try {
+                const message = messageContent;
+                const customReqId = document.getElementById('customReqId').value.trim();
+                
+                // 添加自定义header
+                const headers = new Map();
+                headers.set('X-Source', 'browser-example');
+                headers.set('X-Timestamp', Date.now().toString());
+                headers.set('X-Message-Length', message.length.toString());
+                
+                // 如果用户提供了自定义 X-Req-Id，则使用它
+                if (customReqId) {
+                    headers.set('X-Req-Id', customReqId);
+                    showToast('info', `🏷️ 使用自定义 X-Req-Id: ${customReqId}`);
+                }
+                
+                await client.publish(currentChannel, message, headers);
+                
+                messageStats.published++;
+                messageStats.total++;
+                
+                showToast('success', `✅ 消息发布成功${customReqId ? ` (X-Req-Id: ${customReqId})` : ''}`);
+                updateMessageStats();
+                
+                // 发布成功后清空输入框
+                document.getElementById('messageContent').value = '';
+                
+            } catch (error) {
+                showToast('error', `❌ 发布失败: ${error.message}`);
+            }
+        };
+
+        // X-Req-Id 追踪测试
+        window.testReqIdTracing = async function() {
+            if (!client || !currentChannel) {
+                showToast('error', '❌ 请先订阅频道');
+                return;
+            }
+
+            const timestamp = new Date().toLocaleTimeString().replace(/:/g, '');
+            const testReqId = `BROWSER-TEST-${timestamp}`;
+            
+            try {
+                showToast('info', `🔍 开始 X-Req-Id 追踪测试: ${testReqId}`);
+                
+                // 设置测试用的 X-Req-Id
+                document.getElementById('customReqId').value = testReqId;
+                document.getElementById('messageContent').value = `X-Req-Id 追踪测试消息 - ${new Date().toLocaleString()}`;
+                
+                // 发布消息
+                await window.publishMessage();
+                
+                showToast('success', `✅ 请查看接收到的消息中是否包含 X-Req-Id: ${testReqId}`);
+                
+            } catch (error) {
+                showToast('error', `❌ X-Req-Id 测试失败: ${error.message}`);
+            }
+        };
+
+        // 清空订阅消息
+        window.clearMessages = function() {
+            document.getElementById('receivedMessages').innerHTML = '暂无消息...';
+            messageStats = {
+                total: 0,
+                published: 0,
+                received: 0
+            };
+            updateMessageStats();
+            showToast('info', '🧹 已清空消息记录');
+        };
+
+        // 处理消息输入框的 Enter 键
+        window.handleMessageKeyPress = function(event) {
+            if (event.key === 'Enter') {
+                event.preventDefault();
+                window.publishMessage();
+            }
+        };
+    </script>
+</body>
+</html>
