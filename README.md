@@ -1,6 +1,24 @@
-# Stream Gateway TypeScript SDK
+# Gateway TypeScript SDK
 
-TypeScript SDK for Stream Gateway WebSocket server with unified API design.
+TypeScript SDK for Gateway WebSocket server with unified API design.
+
+## ⚠️ 重要依赖
+
+**此 SDK 需要配合 Gateway Go Server 使用！**
+
+使用前请确保：
+1. **启动 Gateway Go Server**: 参考 [gateway-go-server](https://github.com/langgexyz/gateway-go-server) 启动服务器
+2. **服务器地址**: 默认为 `ws://localhost:18443`，可根据服务器配置调整
+3. **连接测试**: 确保 WebSocket 连接正常后再使用 SDK 功能
+
+```bash
+# 1. 启动 Go 服务器（在 gateway-go-server 目录）
+make debug
+
+# 2. 使用 TypeScript SDK（在 gateway-ts-sdk 目录）
+npm install
+npm run examples:node
+```
 
 ## Features
 
@@ -63,6 +81,48 @@ npm config get registry
 ```
 
 ## Quick Start
+
+### 前置条件
+
+此 SDK 需要配合独立的 Gateway Go Server 使用。请先克隆两个仓库：
+
+```bash
+# 克隆服务器仓库
+git clone https://github.com/langgexyz/gateway-go-server.git
+
+# 克隆客户端 SDK 仓库 (本项目)
+git clone https://github.com/langgexyz/gateway-ts-sdk.git
+```
+
+在使用 SDK 之前，请确保完成以下步骤：
+
+#### 1. 启动 Gateway 服务器
+
+```bash
+# 切换到服务器目录 (需要单独克隆 gateway-go-server 仓库)
+cd path/to/gateway-go-server
+
+# 编译并启动服务器
+make debug
+
+# 确认服务器启动成功，应看到类似输出：
+# [INFO] Server started on :18443
+```
+
+#### 2. 安装和测试 SDK
+
+```bash
+# 返回 SDK 目录
+cd path/to/gateway-ts-sdk
+
+# 安装依赖
+npm install
+
+# 快速测试连接
+npm run examples:node
+```
+
+### 基础使用示例
 
 ```typescript
 import { createClient, HeaderBuilder, HttpMethod } from 'gateway-ts-sdk';
