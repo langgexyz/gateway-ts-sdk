@@ -166,7 +166,8 @@ async function testHookCallback() {
       .setHeader('X-Test-Type', 'hook-callback')
       .build();
     
-    await client.subscribe('hook-test-channel', (cmd, data, headers) => {
+    const hookTestObserver = Symbol('hook-test-observer');
+    await client.subscribe('hook-test-channel', hookTestObserver, (cmd, data, headers) => {
       console.log(`📨 收到推送: ${data}`);
     }, hookHeaders);
     console.log('✅ Hook Subscribe 发送成功');
@@ -192,7 +193,7 @@ async function testHookCallback() {
       .setReqId('hook-unsubscribe-test')
       .build();
     
-    await client.unsubscribe('hook-test-channel', unsubHeaders);
+    await client.unsubscribe('hook-test-channel', hookTestObserver, unsubHeaders);
     console.log('✅ Hook Unsubscribe 发送成功');
     
     // 4. 测试 Hook 回调的 Ping
@@ -246,7 +247,8 @@ async function testHookTracing() {
       .build();
     
     console.log('📋 使用 SDK 自动生成的 reqId');
-    await client.subscribe('trace-channel', (cmd, data, headers) => {
+    const traceObserver = Symbol('trace-observer');
+    await client.subscribe('trace-channel', traceObserver, (cmd, data, headers) => {
       console.log(`📨 收到推送: ${data}`);
     }, headers2);
     console.log('✅ 自动 reqId 测试完成');

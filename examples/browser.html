@@ -276,6 +276,7 @@
         // 订阅状态
         let isSubscribed = false;
         let currentChannel = null;
+        let currentObserver = null;
         let messageStats = {
             total: 0,
             published: 0,
@@ -563,8 +564,11 @@
             }
 
             try {
-                // 订阅时传入回调函数
-                await client.subscribe(channelName, (cmd, data, header) => {
+                // 创建观察者标识符
+                const observer = Symbol(`browser-${channelName}-${Date.now()}`);
+                
+                // 订阅时传入观察者和回调函数
+                await client.subscribe(channelName, observer, (cmd, data, header) => {
                     messageStats.received++;
                     messageStats.total++;
                     
@@ -575,6 +579,7 @@
                 
                 isSubscribed = true;
                 currentChannel = channelName;
+                currentObserver = observer;
                 
                 document.getElementById('subscribeBtn').disabled = true;
                 document.getElementById('unsubscribeBtn').disabled = false;
@@ -590,17 +595,18 @@
 
         // 取消订阅
         window.unsubscribeChannel = async function() {
-            if (!client || !currentChannel) {
+            if (!client || !currentChannel || !currentObserver) {
                 showToast('error', '❌ 没有活跃的订阅');
                 return;
             }
 
             try {
-                await client.unsubscribe(currentChannel);
+                await client.unsubscribe(currentChannel, currentObserver);
                 
                 isSubscribed = false;
                 const oldChannel = currentChannel;
                 currentChannel = null;
+                currentObserver = null;
                 
                 document.getElementById('subscribeBtn').disabled = false;
                 document.getElementById('unsubscribeBtn').disabled = true;

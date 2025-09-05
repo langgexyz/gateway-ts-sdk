@@ -87,7 +87,8 @@ async function testCustomReqId(client) {
     subscribeHeaders.set('X-Req-Id', 'CUSTOM-SUB-TEST-123');
     subscribeHeaders.set('X-Test-Type', 'req-id-validation');
     
-    await client.subscribe('req-id-test-channel', (cmd, data, header) => {
+    const reqIdTestObserver = Symbol('req-id-test-observer');
+    await client.subscribe('req-id-test-channel', reqIdTestObserver, (cmd, data, header) => {
       const receivedReqId = header.get('X-Req-Id');
       testMessages.push({
         cmd,
@@ -137,7 +138,7 @@ async function testCustomReqId(client) {
     // 清理：取消订阅
     const unsubscribeHeaders = new Map();
     unsubscribeHeaders.set('X-Req-Id', 'CUSTOM-UNSUB-TEST-999');
-    await client.unsubscribe('req-id-test-channel', unsubscribeHeaders);
+    await client.unsubscribe('req-id-test-channel', reqIdTestObserver, unsubscribeHeaders);
     console.log('      ✅ 清理完成 (X-Req-Id: CUSTOM-UNSUB-TEST-999)');
 
     console.log('   ✅ X-Req-Id 传递测试完成');
@@ -178,7 +179,8 @@ async function nodeExample() {
     console.log('3️⃣ 订阅消息频道...');
     let messageCount = 0;
     
-    await client.subscribe('demo-channel', (cmd, data, header) => {
+    const demoObserver = Symbol('demo-channel-observer');
+    await client.subscribe('demo-channel', demoObserver, (cmd, data, header) => {
       messageCount++;
       console.log(`📨 收到第 ${messageCount} 条推送消息:`);
       console.log(`   频道: ${cmd}`);
@@ -226,7 +228,7 @@ async function nodeExample() {
 
     // 8. 取消订阅
     console.log('8️⃣ 取消订阅...');
-    await client.unsubscribe('demo-channel');
+    await client.unsubscribe('demo-channel', demoObserver);
     console.log('✅ 取消订阅成功\n');
 
     console.log('🎉 Node.js SDK 示例完成！');
