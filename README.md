@@ -9,7 +9,8 @@ TypeScript SDK for Gateway WebSocket server with unified API design.
 使用前请确保：
 1. **启动 Gateway Go Server**: 参考 [gateway-go-server](https://github.com/langgexyz/gateway-go-server) 启动服务器
 2. **服务器地址**: 默认为 `ws://localhost:18443`，可根据服务器配置调整
-3. **连接测试**: 确保 WebSocket 连接正常后再使用 SDK 功能
+3. **生产环境**: 配置 nginx 反向代理以支持 HTTPS 和正确的超时设置 (见下方配置说明)
+4. **连接测试**: 确保 WebSocket 连接正常后再使用 SDK 功能
 
 ```bash
 # 1. 启动 Go 服务器（在 gateway-go-server 目录）
@@ -22,15 +23,17 @@ npm run examples:node
 
 ## Features
 
-- 🔗 WebSocket connection management
-- 📨 Subscribe/Publish messaging
-- 🏓 Ping support for connection testing
-- 🔄 HTTP Proxy functionality
-- 🪝 Hook callbacks for business logic integration
-- 📋 HeaderBuilder for fluent header construction
-- 🎯 Full TypeScript type safety
-- 🔍 End-to-end request tracing with reqID
-- 🌐 Works in Node.js and Browser
+- 🔗 **智能连接管理**: 自动重连机制，按需建立连接以优化资源使用
+- 📨 **Subscribe/Publish 消息**: 符合观察者模式的发布订阅机制
+- 🏓 **Ping 连接测试**: 支持连接健康检查
+- 🔄 **HTTP 代理功能**: 统一的 HTTP 请求代理接口
+- 🪝 **Hook 回调集成**: 灵活的业务逻辑回调机制
+- 📋 **HeaderBuilder**: 流畅的请求头构建工具
+- 🎯 **TypeScript 类型安全**: 完整的类型定义和智能提示
+- 🔍 **端到端请求追踪**: 基于 reqID 的完整请求链路追踪
+- 🌐 **跨平台支持**: 同时支持 Node.js 和浏览器环境
+- ⚡ **高效资源管理**: 无需定期心跳，240秒自然超时释放资源
+- 🔧 **nginx 兼容**: 完美支持 nginx 反向代理和 HTTPS
 
 ## Installation
 
@@ -120,6 +123,56 @@ npm install
 
 # 快速测试连接
 npm run examples:node
+```
+
+#### 3. nginx 反向代理配置 (生产环境)
+
+如果在生产环境中使用，通常需要通过 nginx 反向代理来提供 HTTPS 支持。以下是关键的 WebSocket 代理配置：
+
+```nginx
+# /etc/nginx/sites-available/your-domain
+server {
+    listen 443 ssl http2;
+    server_name your-domain.com;
+    
+    # SSL 配置
+    ssl_certificate /path/to/your/cert.pem;
+    ssl_certificate_key /path/to/your/key.pem;
+    
+    # Gateway WebSocket 代理配置
+    location /gateway {
+        proxy_pass http://127.0.0.1:18443;
+        proxy_http_version 1.1;
+        
+        # WebSocket 升级头信息
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        
+        # ⚠️ 关键：WebSocket 长连接超时配置
+        proxy_connect_timeout 10s;   # 连接建立超时
+        proxy_read_timeout 300s;     # 读取超时 (大于Gateway的240s心跳)
+        proxy_send_timeout 300s;     # 发送超时
+        
+        # 禁用缓冲以支持实时传输
+        proxy_buffering off;
+        proxy_cache off;
+    }
+}
+```
+
+**重要说明**:
+- `proxy_read_timeout` 和 `proxy_send_timeout` 必须大于 Gateway 服务器的心跳间隔 (240秒)
+- 如果使用默认的 60 秒超时，WebSocket 连接会每 60 秒断开一次
+- 配置完成后记得重载 nginx: `sudo nginx -s reload`
+
+配置后您的客户端连接地址变更为：
+```typescript
+// 使用 nginx 代理的 WSS 连接
+const client = createClient('wss://your-domain.com/gateway');
 ```
 
 ### 基础使用示例

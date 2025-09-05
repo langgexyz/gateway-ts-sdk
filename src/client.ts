@@ -28,6 +28,127 @@ import {
 // Constants
 const X_REQ_ID = 'X-Req-Id';
 
+/**
+ * ConnectionStats - tracks connection stability metrics
+ */
+class ConnectionStats {
+  private startTime: number = Date.now();
+  private disconnectCount: number = 0;
+  private lastDisconnectTime: number = 0;
+  private totalUptime: number = 0;
+  private logger: SDKLogger;
+
+  constructor(logger: SDKLogger) {
+    this.logger = logger;
+  }
+
+  onDisconnect(): void {
+    this.disconnectCount++;
+    const now = Date.now();
+    const uptime = now - (this.lastDisconnectTime || this.startTime);
+    this.totalUptime += uptime;
+    this.lastDisconnectTime = now;
+    
+    this.logger.info(`[Gateway] Stats: disconnect #${this.disconnectCount}, uptime: ${Math.round(uptime/1000)}s`);
+    
+    // Alert if disconnects are too frequent (more than 1 per minute average)
+    if (this.disconnectCount > 5) {
+      const avgInterval = this.totalUptime / this.disconnectCount;
+      if (avgInterval < 60000) {
+        this.logger.warn(`[Gateway] Stats: Frequent disconnects detected! Avg interval: ${Math.round(avgInterval/1000)}s`);
+      }
+    }
+  }
+
+  getStats(): string {
+    const now = Date.now();
+    const totalTime = now - this.startTime;
+    const uptime = this.totalUptime + (now - (this.lastDisconnectTime || this.startTime));
+    const reliability = ((uptime / totalTime) * 100).toFixed(1);
+    
+    return `disconnects: ${this.disconnectCount}, reliability: ${reliability}%, total: ${Math.round(totalTime/1000)}s`;
+  }
+}
+
+// Heartbeater class removed - relying on automatic reconnection for efficient connection management
+
+/**
+ * Reconnecter - handles automatic reconnection and resubscription
+ */
+class Reconnecter {
+  private client: StreamGatewayClient;
+  private logger: SDKLogger;
+  private retryTimer: NodeJS.Timeout | null = null;
+  private isActive: boolean = true;
+
+  constructor(client: StreamGatewayClient, logger: SDKLogger) {
+    this.client = client;
+    this.logger = logger;
+  }
+
+  /**
+   * Start reconnection process
+   */
+  start(): void {
+    if (!this.isActive) {
+      return;
+    }
+    this.do();
+  }
+
+  /**
+   * Stop reconnection process
+   */
+  stop(): void {
+    this.isActive = false;
+    if (this.retryTimer) {
+      clearTimeout(this.retryTimer);
+      this.retryTimer = null;
+    }
+  }
+
+  /**
+   * Execute reconnection logic with 5-second retry strategy
+   */
+  private async do(): Promise<void> {
+    if (!this.isActive) {
+      return;
+    }
+
+    const cmdsToResubscribe = this.client.getSubscribedCommands();
+    if (cmdsToResubscribe.length === 0) {
+      this.logger.debug('[Gateway] Reconnecter: no subscriptions to restore');
+      return;
+    }
+
+    try {
+      this.logger.info(`[Gateway] Reconnecter: attempting to resubscribe ${cmdsToResubscribe.length} commands`);
+      
+      const request = new SubscribeRequest();
+      request.cmd = cmdsToResubscribe;
+      await this.client.send(`${this.client.getRootUri()}/Subscribe`, request, SubscribeResponse);
+      
+      this.logger.info(`[Gateway] Reconnecter: resubscribed successfully`);
+      
+      // Success - clear retry timer
+      if (this.retryTimer) {
+        clearTimeout(this.retryTimer);
+        this.retryTimer = null;
+      }
+      
+    } catch (error) {
+      this.logger.error(`[Gateway] Reconnecter: failed - ${error}`);
+      
+      if (this.isActive) {
+        this.logger.info('[Gateway] Reconnecter: will retry in 5s');
+        this.retryTimer = setTimeout(() => {
+          this.do();
+        }, 5000);
+      }
+    }
+  }
+}
+
 
 export class StreamGatewayClient {
   private client: Client;
@@ -41,6 +162,14 @@ export class StreamGatewayClient {
   
   // API root URI (default: "API")
   private rootUri: string = "API";
+  
+  // Reconnecter for handling automatic reconnection
+  private reconnecter: Reconnecter;
+  
+  // Heartbeater removed - rely on automatic reconnection for efficiency
+  
+  // ConnectionStats for monitoring stability
+  private connectionStats: ConnectionStats;
   
   // Global auto-incrementing counter for request sequence
   private static globalSeqId: number = 0;
@@ -70,6 +199,43 @@ export class StreamGatewayClient {
    */
   public getRootUri(): string {
     return this.rootUri;
+  }
+
+  /**
+   * 获取当前已订阅的频道列表 (供 Reconnecter 使用)
+   * 
+   * @returns 频道名称数组
+   */
+  public getSubscribedCommands(): string[] {
+    return Array.from(this.callbacks.keys());
+  }
+
+  /**
+   * 获取连接统计信息
+   * 
+   * @returns 连接稳定性统计
+   * 
+   * @example
+   * ```typescript
+   * console.log(client.getConnectionStats());
+   * ```
+   */
+  public getConnectionStats(): string {
+    return this.connectionStats.getStats();
+  }
+
+  /**
+   * 停止客户端和清理资源
+   * 
+   * @example
+   * ```typescript
+   * client.destroy();
+   * ```
+   */
+  public destroy(): void {
+    this.logger.info(`[Gateway] Client destroyed. Final stats: ${this.getConnectionStats()}`);
+    this.reconnecter.stop();
+    this.callbacks.clear();
   }
 
   /**
@@ -109,6 +275,14 @@ export class StreamGatewayClient {
     
     this.clientId = clientId;
     this.logger = new SDKLogger(this.clientId);
+    
+    // Initialize reconnecter
+    this.reconnecter = new Reconnecter(this, this.logger);
+    
+    // Heartbeater removed - automatic reconnection handles connection recovery
+    
+    // Initialize connection stats
+    this.connectionStats = new ConnectionStats(this.logger);
 
     // Set up push message handler
     this.client.onPush = async (res: Result) => {
@@ -154,24 +328,29 @@ export class StreamGatewayClient {
     };
 
     this.client.onPeerClosed = async (err: StmError) => {
-      this.logger.warn(`Connection closed: ${err}`);
+      const timestamp = new Date().toISOString();
+      this.logger.warn(`[Gateway] Connection lost at ${timestamp}: ${err}`);
       
+      // Analyze error code for debugging
+      if (err.toString().includes('1006')) {
+        this.logger.warn('[Gateway] 1006: Abnormal connection closure - possible network/proxy issue');
+      } else if (err.toString().includes('1001')) {
+        this.logger.warn('[Gateway] 1001: Server endpoint going down');
+      } else if (err.toString().includes('timeout')) {
+        this.logger.warn('[Gateway] Timeout: Connection timed out');
+      }
+      
+      // Track disconnect for statistics
+      this.connectionStats.onDisconnect();
+      
+      // Recover connection
       await this.client.Recover()
       
-      const cmdsToResubscribe = Array.from(this.callbacks.keys());
-      if (cmdsToResubscribe.length === 0) {
-        return;
-      }
-
-      try {
-        const request = new SubscribeRequest();
-        request.cmd = cmdsToResubscribe;
-        await this.send(`${this.rootUri}/Subscribe`, request, SubscribeResponse);
-        this.logger.info(`Re-subscribed to ${cmdsToResubscribe.length} commands: ${cmdsToResubscribe.join(', ')}`);
-      } catch (error) {
-        this.logger.error(`Failed to re-subscribe after reconnection: ${error}`);
-      }
+      // Delegate reconnection to the reconnecter
+      this.reconnecter.start();
     }
+    
+    // No heartbeat needed - automatic reconnection handles connection management
   }
 
   /**
@@ -225,10 +404,15 @@ export class StreamGatewayClient {
     const request = new SubscribeRequest();
     request.cmd = [cmd];
     
+    // 获取或生成请求ID以用于日志记录
+    const reqId = headers.get(X_REQ_ID) || this.getNextReqId();
+    headers.set(X_REQ_ID, reqId);
+    const logger = new SDKLogger(reqId);
+    
     try {
       const response = await this.send(`${this.rootUri}/Subscribe`, request, SubscribeResponse, headers);
       const observerName = observer.description || 'anonymous';
-      this.logger.info(`Subscription created for cmd '${cmd}' with observer '${observerName}'`);
+      logger.info(`[Gateway] Subscription created for cmd '${cmd}' with observer '${observerName}'`);
       return response;
     } catch (error) {
       // 如果订阅失败，移除刚添加的本地订阅
@@ -283,7 +467,8 @@ export class StreamGatewayClient {
     
     // 如果还有其他 observer，不需要向服务器发送取消订阅请求
     if (cmdCallbacks.size > 0) {
-      this.logger.info(`Removed observer '${observerName}' from cmd '${cmd}' (${cmdCallbacks.size} remaining)`);
+      // 使用默认logger即可，因为没有网络请求
+      this.logger.info(`[Gateway] Removed observer '${observerName}' from cmd '${cmd}' (${cmdCallbacks.size} remaining)`);
       const response = new UnsubscribeResponse();
       response.errMsg = null;
       return response;
@@ -291,7 +476,13 @@ export class StreamGatewayClient {
     
     // 如果没有其他订阅了，删除整个 cmd 条目并向服务器发送取消订阅请求
     this.callbacks.delete(cmd);
-    this.logger.info(`Removed last observer for cmd '${cmd}', unsubscribing from server`);
+    
+    // 获取或生成请求ID以用于日志记录
+    const reqId = headers.get(X_REQ_ID) || this.getNextReqId();
+    headers.set(X_REQ_ID, reqId);
+    const logger = new SDKLogger(reqId);
+    
+    logger.info(`[Gateway] Removed last observer for cmd '${cmd}', unsubscribing from server`);
     
     const request = new UnsubscribeRequest();
     request.cmd = [cmd];
