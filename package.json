@@ -28,9 +28,7 @@
     "test": "node scripts/test.cjs",
     "pack": "npm run check && npm run build && npm pack && mv *.tgz packages/",
     "login": "node scripts/login.cjs",
-    "release": "npm run check && npm run build && npm pack && mv *.tgz packages/ && echo '✅ Package created successfully!'",
-    "release:npm": "node scripts/publish.cjs",
-    "release:dry": "node scripts/publish.cjs --dry-run"
+    "release": "npm run check && npm run build && npm pack && mv *.tgz packages/ && echo '✅ Package created successfully!'"
   },
   "keywords": [
     "websocket",
