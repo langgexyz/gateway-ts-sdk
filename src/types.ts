@@ -28,27 +28,26 @@ export class PublishResponse {
   errMsg: string | null = null;
 }
 
-// Header class for proper ts-json serialization/deserialization
-export class OnPushHeader {
-  "X-Req-Id": string = "";
-  
-  // Convert to Map for upper layer callback
-  toMap(): Map<string, string> {
-    const map = new Map<string, string>();
-    for (const key in this) {
-      if (this.hasOwnProperty(key) && typeof (this as any)[key] === 'string' && (this as any)[key]) {
-        map.set(key, (this as any)[key]);
-      }
-    }
-    return map;
-  }
-}
 
 // Push Message Types
-export class OnPushMessage {
-  cmd: string = "";
-  data: string = ""; // JSON string
-  header: OnPushHeader = new OnPushHeader(); // Header containing X-Req-Id and future extensions
+export interface OnPushMessage {
+  cmd: string;
+  data: string; // JSON string
+  header: { [key: string]: string }; // Header containing X-Req-Id and future extensions
+}
+
+/**
+ * 获取头部信息为 Map 格式的工具函数
+ * 提供上层接口兼容性，方便使用 Map 的方法
+ * @param header - OnPushMessage的header对象
+ * @returns Map<string, string> 格式的头部信息
+ */
+export function getHeaderMap(header: { [key: string]: string }): Map<string, string> {
+  const headerMap = new Map<string, string>();
+  for (const [key, value] of Object.entries(header)) {
+    headerMap.set(key, String(value));
+  }
+  return headerMap;
 }
 
 export class PingRequest {
