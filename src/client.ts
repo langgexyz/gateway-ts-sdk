@@ -10,7 +10,7 @@
  */
 
 import { Client, Result, StmError } from 'ts-streamclient';
-import { Json } from 'ts-json';
+import { plainToClass, classToPlain } from 'class-transformer';
 import { SDKLogger } from './logger';
 import type {
   OnPushMessageCallback
@@ -555,21 +555,13 @@ export class StreamGatewayClient {
     headers: Map<string, string> = new Map()
   ): Promise<T> {
     // 序列化请求数据为 JSON 字符串
-    const json = new Json();
-    const requestData = json.toJson(data);
+    const requestData = JSON.stringify(classToPlain(data));
     
     // 使用 sendRaw 发送原始数据
     const rawResponse = await this.sendRaw(api, requestData, headers);
     
     // 反序列化响应为指定类型
-    const [response, parseErr] = json.fromJson(rawResponse, responseType);
-    
-    if (parseErr) {
-      const reqId = headers.get(X_REQ_ID) || this.getNextReqId();
-      const logger = new SDKLogger(reqId);
-      logger.error(`[Gateway] ${api} response parse error: ${parseErr}`);
-      throw parseErr;
-    }
+    const response = plainToClass(responseType, JSON.parse(rawResponse));
     
     return response;
   }
