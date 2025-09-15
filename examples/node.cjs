@@ -23,7 +23,7 @@ async function testProxy(client) {
     
     // 设置代理 headers - 修复后的正确写法
     const proxyHeaders = new Map();
-    proxyHeaders.set("x-proxy-url", "http://localhost:8080/api/test");
+    proxyHeaders.set("x-proxy-url", "http://localhost:7001/api/health");
     proxyHeaders.set("x-proxy-method", "GET");
     proxyHeaders.set("X-Req-Id", "NODE-PROXY-TEST-123");
     
@@ -71,6 +71,88 @@ async function testProxy(client) {
       console.log('   💡 缺少 x-proxy-method header');
     } else if (error.message.includes('500')) {
       console.log('   💡 服务器错误，请检查目标 URL 是否可访问');
+    }
+  }
+}
+
+/**
+ * 测试 Hook API
+ */
+async function testHook(client) {
+  try {
+    console.log('   🔗 测试 Hook API...');
+    
+    // 设置 Hook headers - 使用 midway-ts-server 的反馈端点
+    const hookHeaders = new Map();
+    hookHeaders.set("x-hook-url", "http://localhost:7001/public/feedback/bug_report/categories/ui_ux/submissions");
+    hookHeaders.set("x-hook-method", "POST");
+    hookHeaders.set("X-Req-Id", "NODE-HOOK-TEST-456");
+    
+    // 定义 Hook 回调数据
+    const hookData = {
+      title: "Gateway SDK Hook 测试",
+      description: "这是一个通过 Gateway SDK Hook 功能提交的测试反馈",
+      severity: "low",
+      environment_info: {
+        browser: "Node.js Test",
+        os: process.platform,
+        device: "Test Environment",
+        url: "http://localhost:7001"
+      },
+      contact_info: {
+        email: "test@gateway.com",
+        preferred_contact: "email"
+      },
+      anonymous: false
+    };
+    
+    // 使用 Hook 进行订阅操作
+    console.log('   📡 发送 Hook 订阅请求...');
+    const hookResult = await client.subscribe('hook-test-channel', hookHeaders);
+    
+    if (hookResult && !hookResult.errMsg) {
+      console.log('   ✅ Hook 订阅成功');
+      console.log(`   📊 Hook 响应: ${JSON.stringify(hookResult, null, 2)}`);
+      
+      // 发布消息触发 Hook 回调
+      console.log('   📤 发布消息触发 Hook 回调...');
+      const publishResult = await client.publish('hook-test-channel', JSON.stringify(hookData), hookHeaders);
+      
+      if (publishResult && !publishResult.errMsg) {
+        console.log('   ✅ Hook 发布成功');
+        console.log(`   📊 Hook 发布响应: ${JSON.stringify(publishResult, null, 2)}`);
+      } else {
+        console.log('   ❌ Hook 发布失败:', publishResult?.errMsg || '未知错误');
+      }
+      
+      // 取消订阅
+      console.log('   🔄 取消 Hook 订阅...');
+      const unsubscribeResult = await client.unsubscribe('hook-test-channel', hookHeaders);
+      
+      if (unsubscribeResult && !unsubscribeResult.errMsg) {
+        console.log('   ✅ Hook 取消订阅成功');
+      } else {
+        console.log('   ❌ Hook 取消订阅失败:', unsubscribeResult?.errMsg || '未知错误');
+      }
+      
+    } else {
+      console.log('   ❌ Hook 订阅失败:', hookResult?.errMsg || '未知错误');
+    }
+    
+  } catch (error) {
+    console.log('   ❌ Hook 测试失败:', error.message);
+    
+    // 友好的错误提示
+    if (error.message.includes('MISSING_HOOK_URL')) {
+      console.log('   💡 缺少 x-hook-url header');
+    } else if (error.message.includes('MISSING_HOOK_METHOD')) {
+      console.log('   💡 缺少 x-hook-method header');
+    } else if (error.message.includes('ECONNREFUSED')) {
+      console.log('   💡 Hook 目标服务器连接被拒绝，请检查服务器是否运行');
+    } else if (error.message.includes('timeout')) {
+      console.log('   💡 Hook 请求超时，请检查网络连接');
+    } else {
+      console.log('   💡 请检查 Hook URL 和网络连接');
     }
   }
 }
@@ -251,6 +333,11 @@ async function nodeExample() {
     console.log('   ✅ 取消订阅');
     console.log('   ✅ X-Req-Id 传递验证');
     console.log('   ✅ Proxy API 测试');
+    
+    // 9️⃣ 测试 Hook API
+    console.log('\n9️⃣ 测试 Hook API...');
+    await testHook(client);
+    console.log('   ✅ Hook API 测试');
 
     // 程序执行完毕，主动退出（因为WebSocket连接会保持程序运行）
     console.log('\n✅ 所有测试完成，程序即将退出...');
