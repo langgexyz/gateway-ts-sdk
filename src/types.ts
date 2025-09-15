@@ -42,11 +42,31 @@ export class OnPushMessage {
  * @param header - OnPushMessage的header对象
  * @returns Map<string, string> 格式的头部信息
  */
-export function getHeaderMap(header: { [key: string]: string }): Map<string, string> {
+export function getHeaderMap(header: { [key: string]: string } | null | undefined): Map<string, string> {
   const headerMap = new Map<string, string>();
-  for (const [key, value] of Object.entries(header)) {
-    headerMap.set(key, String(value));
+  
+  // 处理 null 和 undefined 情况
+  if (!header) {
+    return headerMap;
   }
+  
+  // 确保 header 是对象类型
+  if (typeof header !== 'object') {
+    return headerMap;
+  }
+  
+  try {
+    for (const [key, value] of Object.entries(header)) {
+      // 确保 key 和 value 都是有效值
+      if (key != null && value != null) {
+        headerMap.set(String(key), String(value));
+      }
+    }
+  } catch (error) {
+    // 如果 Object.entries 失败，返回空 Map
+    console.warn('[Gateway] getHeaderMap: Failed to process header object:', error);
+  }
+  
   return headerMap;
 }
 
