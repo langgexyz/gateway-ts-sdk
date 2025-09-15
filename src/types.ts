@@ -30,10 +30,10 @@ export class PublishResponse {
 
 
 // Push Message Types
-export interface OnPushMessage {
-  cmd: string;
-  data: string; // JSON string
-  header: { [key: string]: string }; // Header containing X-Req-Id and future extensions
+export class OnPushMessage {
+  cmd: string = "";
+  data: string = "";
+  header: { [key: string]: string } = {};
 }
 
 /**

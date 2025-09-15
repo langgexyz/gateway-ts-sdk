@@ -10,7 +10,7 @@
  */
 
 import { Client, Result, StmError } from 'ts-streamclient';
-import { plainToClass, classToPlain } from 'class-transformer';
+import { plainToClass, instanceToPlain } from 'class-transformer';
 import { SDKLogger } from './logger';
 import type {
   OnPushMessageCallback
@@ -254,10 +254,11 @@ export class StreamGatewayClient {
       const rawData = res.toString();
       this.logger.debug(`[Gateway] Raw push data: ${rawData}`);
       
-      // 手动解析JSON，避免ts-json的问题
+      // 使用 class-transformer 解析JSON
       let pushData: OnPushMessage;
       try {
-        pushData = JSON.parse(rawData);
+        const jsonData = JSON.parse(rawData);
+        pushData = plainToClass(OnPushMessage, jsonData);
       } catch (err) {
         this.logger.error(`[Gateway] Push message parse failed: ${err}`);
         this.logger.error(`[Gateway] Raw data was: ${rawData}`);
@@ -555,7 +556,7 @@ export class StreamGatewayClient {
     headers: Map<string, string> = new Map()
   ): Promise<T> {
     // 序列化请求数据为 JSON 字符串
-    const requestData = JSON.stringify(classToPlain(data));
+    const requestData = JSON.stringify(instanceToPlain(data));
     
     // 使用 sendRaw 发送原始数据
     const rawResponse = await this.sendRaw(api, requestData, headers);

@@ -1,6 +1,6 @@
 {
   "name": "gateway-ts-sdk",
-  "version": "1.0.1-alpha.0",
+  "version": "1.0.1-alpha.4",
   "description": "TypeScript SDK for Stream Gateway WebSocket server",
   "type": "module",
   "main": "dist/index.cjs",
@@ -59,12 +59,12 @@
     "esbuild": "^0.25.9",
     "eslint": "^8.50.0",
     "npm-cli-login": "^1.0.0",
-    "ts-concurrency": "https://github.com/langgexyz/ts-concurrency#semver:^1.0.0",
+    "ts-concurrency": "github:langgexyz/ts-concurrency#semver:^1.0.0",
     "class-transformer": "^0.5.1",
-    "ts-streamclient": "https://github.com/langgexyz/ts-streamclient#semver:^1.0.0",
-    "ts-xutils": "https://github.com/langgexyz/ts-xutils#semver:^1.0.0",
+    "ts-streamclient": "github:langgexyz/ts-streamclient#semver:^1.0.0",
+    "ts-xutils": "github:langgexyz/ts-xutils#semver:^1.0.0",
     "tslib": "^2.8.1",
-    "typescript": "^4.9.5"
+    "typescript": "^5.0.0"
   },
   "engines": {
     "node": ">=16.0.0"
