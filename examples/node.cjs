@@ -9,7 +9,7 @@
  * - For local server: ws://localhost:18443 (make debug)
  */
 
-const { createClient } = require('../dist/index.cjs');
+const { createClient } = require('../dist/cjs/index.cjs');
 const { version: SDK_VERSION } = require('../package.json');
 
 // 环境配置 - 通过环境变量传入

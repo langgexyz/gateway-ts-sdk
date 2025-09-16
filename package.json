@@ -1,21 +1,37 @@
 {
+  "_ai_rules": {
+    "github_dependencies": {
+      "langgexyz/*": {
+        "version_pattern": "semver:\\^[1-9][0-9]*\\.[0-9]+\\.[0-9]+$",
+        "forbidden_patterns": [
+          "semver:\\^[0-9]+\\.[0-9]+\\.[0-9]+-[a-zA-Z]",
+          "semver:\\^[0-9]+\\.[0-9]+\\.[0-9]+\\.[0-9]+"
+        ],
+        "description": "package.json 中只能使用稳定版本范围，如 ^1.0.0，禁止直接写预发布版本如 ^1.0.0-alpha.4"
+      }
+    }
+  },
   "name": "gateway-ts-sdk",
-  "version": "1.0.1-alpha.9",
+  "version": "1.0.0",
   "description": "TypeScript SDK for Stream Gateway WebSocket server",
   "type": "module",
-  "main": "dist/index.cjs",
-  "module": "dist/index.mjs",
-  "browser": "dist/index.mjs",
+  "main": "dist/cjs/index.cjs",
+  "module": "dist/esm/index.js",
+  "browser": "dist/umd/index.js",
   "types": "dist/types/index.d.ts",
   "exports": {
     ".": {
       "types": "./dist/types/index.d.ts",
-      "import": "./dist/index.mjs",
-      "require": "./dist/index.cjs"
+      "import": "./dist/esm/index.js",
+      "require": "./dist/cjs/index.cjs"
     }
   },
   "scripts": {
-    "build": "node esbuild.config.js && tsc --declaration --emitDeclarationOnly --outDir dist/types",
+    "build": "npm run build:cjs && npm run build:esm && npm run build:umd && npm run build:types",
+    "build:cjs": "tsc -p tsconfig.cjs.json && find dist/cjs -name '*.js' -exec sh -c 'mv \"$1\" \"${1%.js}.cjs\"' _ {} \\; && find dist/cjs -name '*.cjs' -exec sed -i '' 's/\\.js\"/\\.cjs\"/g' {} \\;",
+    "build:esm": "tsc -p tsconfig.esm.json",
+    "build:umd": "tsc -p tsconfig.umd.json",
+    "build:types": "tsc -p tsconfig.types.json",
     "clean": "rm -rf dist/ *.tgz",
     "rebuild": "npm run clean && npm run build",
     "lint": "eslint src/**/*.ts",
@@ -52,17 +68,18 @@
     "CHANGELOG.md",
     "package.json"
   ],
+  "dependencies": {
+    "class-transformer": "^0.5.1",
+    "ts-concurrency": "github:langgexyz/ts-concurrency#semver:^1.0.0",
+    "ts-streamclient": "github:langgexyz/ts-streamclient#semver:^1.0.0",
+    "ts-xutils": "github:langgexyz/ts-xutils#semver:^1.0.0"
+  },
   "devDependencies": {
     "@types/node": "^20.8.0",
     "@typescript-eslint/eslint-plugin": "^6.7.0",
     "@typescript-eslint/parser": "^6.7.0",
-    "class-transformer": "^0.5.1",
-    "esbuild": "^0.25.9",
     "eslint": "^8.50.0",
     "npm-cli-login": "^1.0.0",
-    "ts-concurrency": "file:../ts-concurrency",
-    "ts-streamclient": "file:../ts-streamclient",
-    "ts-xutils": "file:../ts-xutils",
     "tslib": "^2.8.1",
     "typescript": "^5.9.2"
   },

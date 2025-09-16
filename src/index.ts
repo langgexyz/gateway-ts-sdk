@@ -7,15 +7,15 @@
  * Works in both Node.js and Browser environments.
  */
 
-export { StreamGatewayClient } from './client';
-export { SDKLogger } from './logger';
-export * from './types';
+export { StreamGatewayClient } from './client.js';
+export { SDKLogger } from './logger.js';
+export * from './types.js';
 
 // Re-export Client and withBrowser for advanced usage
 export { Client, withBrowser } from 'ts-streamclient';
 
 // Import dependencies
-import { StreamGatewayClient } from './client';
+import { StreamGatewayClient } from './client.js';
 import { Client, withBrowser } from 'ts-streamclient';
 
 /**

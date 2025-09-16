@@ -11,10 +11,10 @@
 
 import { Client, Result, StmError } from 'ts-streamclient';
 import { plainToClass, instanceToPlain } from 'class-transformer';
-import { SDKLogger } from './logger';
+import { SDKLogger } from './logger.js';
 import type {
   OnPushMessageCallback
-} from './types';
+} from './types.js';
 import {
   OnPushMessage,
   SubscribeRequest,
@@ -26,7 +26,7 @@ import {
   PingRequest,
   PingResponse,
   getHeaderMap
-} from './types';
+} from './types.js';
 
 // 请求 ID 头部字段名
 const X_REQ_ID = 'X-Req-Id';
