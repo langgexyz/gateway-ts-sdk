@@ -12,10 +12,9 @@
     }
   },
   "name": "gateway-ts-sdk",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "TypeScript SDK for Gateway WebSocket server",
-  "type": "module",
-  "main": "dist/cjs/index.cjs",
+  "main": "dist/cjs/index.js",
   "module": "dist/esm/index.js",
   "browser": "dist/umd/index.js",
   "types": "dist/types/index.d.ts",
@@ -23,16 +22,16 @@
     ".": {
       "types": "./dist/types/index.d.ts",
       "import": "./dist/esm/index.js",
-      "require": "./dist/cjs/index.cjs"
+      "require": "./dist/cjs/index.js"
     }
   },
   "scripts": {
     "build": "npm run build:cjs && npm run build:esm && npm run build:umd && npm run build:types",
-    "build:cjs": "tsc -p tsconfig.cjs.json && find dist/cjs -name '*.js' -exec sh -c 'mv \"$1\" \"${1%.js}.cjs\"' _ {} \\; && find dist/cjs -name '*.cjs' -exec sed -i '' 's/\\.js\"/\\.cjs\"/g' {} \\;",
+    "build:cjs": "tsc -p tsconfig.cjs.json",
     "build:esm": "tsc -p tsconfig.esm.json",
     "build:umd": "tsc -p tsconfig.umd.json",
     "build:types": "tsc -p tsconfig.types.json",
-    "clean": "rm -rf dist/ *.tgz",
+    "clean": "rm -rf dist",
     "rebuild": "npm run clean && npm run build",
     "lint": "eslint src/**/*.ts",
     "lint:fix": "eslint src/**/*.ts --fix",
@@ -40,11 +39,7 @@
     "check": "npm run typecheck",
     "examples:node": "node examples/node.cjs",
     "examples:browser": "echo '\n🌐 浏览器示例:\n   📊 Ping + 订阅 + 发布测试: http://localhost:8080/examples/browser.html\n   🔗 代理测试: http://localhost:8080/examples/proxy.html\n' && npx --yes http-server . -p 8080 -c-1",
-    "examples:hook-proxy": "node examples/hook-proxy.cjs",
-    "test": "node scripts/test.cjs",
-    "pack": "npm run check && npm run build && npm pack && mv *.tgz packages/",
-    "login": "node scripts/login.cjs",
-    "release": "npm run check && npm run build && npm pack && mv *.tgz packages/ && echo '✅ Package created successfully!'"
+    "examples:hook-proxy": "node examples/hook-proxy.cjs"
   },
   "keywords": [
     "websocket",
