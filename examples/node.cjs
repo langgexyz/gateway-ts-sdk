@@ -1,5 +1,5 @@
 /**
- * Stream Gateway SDK - Node.js Complete Example & Test
+ * Gateway SDK - Node.js Complete Example & Test
  * 
  * Comprehensive example demonstrating all SDK features
  * Run: npm run example:node
@@ -231,7 +231,7 @@ async function testCustomReqId(client) {
 }
 
 async function nodeExample() {
-  console.log('🚀 Stream Gateway SDK - Node.js Complete Example');
+  console.log('🚀 Gateway SDK - Node.js Complete Example');
   console.log(`📦 SDK Version: ${SDK_VERSION}`);
   console.log(`🔗 连接到: ${WS_URL} (${ENV_NAME})`);
   console.log('=====================================\n');

@@ -1,33 +1,27 @@
 /**
- * Stream Gateway TypeScript SDK
+ * Gateway TypeScript SDK
  * 
- * A comprehensive TypeScript SDK for connecting to Stream Gateway WebSocket server.
+ * A comprehensive TypeScript SDK for connecting to Gateway WebSocket server.
  * Supports channel-based messaging, automatic reconnection, and type-safe API calls.
  * 
  * Works in both Node.js and Browser environments.
  */
 
-export { StreamGatewayClient } from './client.js';
-export { SDKLogger } from './logger.js';
+export { GatewayClient } from './client.js';
 export * from './types.js';
 
-// Re-export Client and withBrowser for advanced usage
-export { Client, withBrowser } from 'ts-streamclient';
-
 // Import dependencies
-import { StreamGatewayClient } from './client.js';
+import { GatewayClient } from './client.js';
 import { Client, withBrowser } from 'ts-streamclient';
 
 /**
-* Create a StreamGateway client
+* Create a Gateway client
 * @param wsUrl WebSocket URL
 * @param clientId Client ID (4 characters, default: '0000')
-* @returns StreamGatewayClient instance
+* @returns GatewayClient instance
 */
-export function createClient(wsUrl: string, clientId?: string): StreamGatewayClient {
+export function createClient(wsUrl: string, clientId?: string): GatewayClient {
   const client = new Client(withBrowser(wsUrl));
-  return new StreamGatewayClient(client, clientId);
+  return new GatewayClient(client, clientId);
 }
 
-// Default export
-export default StreamGatewayClient;

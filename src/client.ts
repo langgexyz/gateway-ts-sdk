@@ -1,5 +1,5 @@
 /**
- * Stream Gateway TypeScript SDK - 主客户端
+ * Gateway TypeScript SDK - 主客户端
  * 
  * 提供基于 WebSocket 的实时通信能力，支持：
  * - 频道订阅/取消订阅
@@ -11,7 +11,8 @@
 
 import { Client, Result, StmError } from 'ts-streamclient';
 import { plainToClass, instanceToPlain } from 'class-transformer';
-import { SDKLogger } from './logger.js';
+import type { Logger } from 'ts-xutils';
+import { ConsoleLogger } from 'ts-xutils';
 import type {
   OnPushMessageCallback
 } from './types.js';
@@ -39,12 +40,12 @@ const X_REQ_ID = 'X-Req-Id';
  * 使用指数退避策略，避免频繁重试
  */
 class Reconnecter {
-  private client: StreamGatewayClient;
-  private logger: SDKLogger;
+  private client: GatewayClient;
+  private logger: Logger;
   private retryTimer: NodeJS.Timeout | null = null;
   private isActive: boolean = true;
 
-  constructor(client: StreamGatewayClient, logger: SDKLogger) {
+  constructor(client: GatewayClient, logger: Logger) {
     this.client = client;
     this.logger = logger;
   }
@@ -81,12 +82,12 @@ class Reconnecter {
 
     const cmdsToResubscribe = this.client.getSubscribedCommands();
     if (cmdsToResubscribe.length === 0) {
-      this.logger.debug('[Gateway] Reconnecter: no subscriptions to restore');
+      this.logger.w.debug(this.logger.f.Debug('Gateway', `Reconnecter: no subscriptions to restore`));
       return;
     }
 
     try {
-      this.logger.info(`[Gateway] Reconnecter: attempting to resubscribe ${cmdsToResubscribe.length} commands`);
+      this.logger.w.info(this.logger.f.Info('Gateway', `Reconnecter: attempting to resubscribe ${cmdsToResubscribe.length} commands`));
       
       const request = new SubscribeRequest();
       request.cmd = cmdsToResubscribe;
@@ -98,7 +99,7 @@ class Reconnecter {
       
       await this.client.send(`${this.client.getRootUri()}/Subscribe`, request, SubscribeResponse, headers);
       
-      this.logger.info(`[Gateway] Reconnecter: resubscribed successfully`);
+      this.logger.w.info(this.logger.f.Info('Gateway', `Reconnecter: resubscribed successfully`));
       
       // 成功重连，清除重试定时器
       if (this.retryTimer) {
@@ -107,10 +108,10 @@ class Reconnecter {
       }
       
     } catch (error) {
-      this.logger.error(`[Gateway] Reconnecter: failed - ${error}`);
+      this.logger.w.error(this.logger.f.Error('Gateway', `Reconnecter: failed - ${error}`));
       
       if (this.isActive) {
-        this.logger.info('[Gateway] Reconnecter: will retry in 5s');
+        this.logger.w.info(this.logger.f.Info('Gateway', `Reconnecter: will retry in 5s`));
         this.retryTimer = setTimeout(() => {
           this.do();
         }, 5000);
@@ -121,14 +122,14 @@ class Reconnecter {
 
 
 /**
- * Stream Gateway 主客户端类
+ * Gateway 主客户端类
  * 
  * 提供完整的实时通信功能，包括：
  * - 多观察者订阅模式：同一频道可被多个组件订阅
  * - 自动重连和重订阅：网络断开后自动恢复订阅状态
  * - 请求追踪：每个请求都有唯一ID用于日志关联
  */
-export class StreamGatewayClient {
+export class GatewayClient {
   private client: Client;
   
   // 观察者回调映射：频道名 -> (观察者ID -> 回调函数)
@@ -136,7 +137,7 @@ export class StreamGatewayClient {
   private callbacks: Map<string, Map<symbol, OnPushMessageCallback>> = new Map();
   
   // 客户端日志记录器，使用固定的客户端ID
-  private logger: SDKLogger;
+  private logger: Logger;
   private clientId: string;
   
   // API 根路径，默认为 "API"，可通过 setRootUri 修改
@@ -194,7 +195,7 @@ export class StreamGatewayClient {
    * ```
    */
   public destroy(): void {
-    this.logger.info(`[Gateway] Client destroyed`);
+    this.logger.w.info(this.logger.f.Info('Gateway', `Client destroyed`));
     this.reconnecter.stop();
     this.callbacks.clear();
   }
@@ -212,11 +213,11 @@ export class StreamGatewayClient {
    * ```
    */
   public getNextReqId(): string {
-    StreamGatewayClient.globalSeqId = (StreamGatewayClient.globalSeqId + 1) % 100000000;
+    GatewayClient.globalSeqId = (GatewayClient.globalSeqId + 1) % 100000000;
     
     const random = Math.random().toString(16).substring(2, 10).padStart(8, '0');
     const clientId = this.clientId;
-    const seqDecimal = StreamGatewayClient.globalSeqId.toString().padStart(8, '0');
+    const seqDecimal = GatewayClient.globalSeqId.toString().padStart(8, '0');
     const seqHigh = seqDecimal.substring(0, 4);
     const seqLow = seqDecimal.substring(4, 8);
     const timestamp = Date.now().toString();
@@ -243,7 +244,7 @@ export class StreamGatewayClient {
     }
     
     this.clientId = clientId;
-    this.logger = new SDKLogger(this.clientId);
+    this.logger = ConsoleLogger;
     
     // 初始化自动重连器
     this.reconnecter = new Reconnecter(this, this.logger);
@@ -252,7 +253,7 @@ export class StreamGatewayClient {
     this.client.onPush = async (res: Result) => {
       // 调试：打印原始数据
       const rawData = res.toString();
-      this.logger.debug(`[Gateway] Raw push data: ${rawData}`);
+      this.logger.w.debug(this.logger.f.Debug('Gateway', `Raw push data: ${rawData}`));
       
       // 使用 class-transformer 解析JSON
       let pushData: OnPushMessage;
@@ -260,50 +261,50 @@ export class StreamGatewayClient {
         const jsonData = JSON.parse(rawData);
         pushData = plainToClass(OnPushMessage, jsonData);
       } catch (err) {
-        this.logger.error(`[Gateway] Push message parse failed: ${err}`);
-        this.logger.error(`[Gateway] Raw data was: ${rawData}`);
+        this.logger.w.error(this.logger.f.Error('Gateway', `Push message parse failed: ${err}`));
+        this.logger.w.error(this.logger.f.Error('Gateway', `Raw data was: ${rawData}`));
         return;
       }
       
       if (!pushData.cmd || !pushData.data) {
-        this.logger.error(`[Gateway] Push message parse failed: invalid message format`);
-        this.logger.error(`[Gateway] Raw data was: ${rawData}`);
+        this.logger.w.error(this.logger.f.Error('Gateway', `Push message parse failed: invalid message format`));
+        this.logger.w.error(this.logger.f.Error('Gateway', `Raw data was: ${rawData}`));
         return;
       }
       
       // 调试：打印解析后的数据
-      this.logger.debug(`[Gateway] Parsed push message: cmd=${pushData.cmd}, data=${pushData.data}, header=${JSON.stringify(pushData.header)}`);
+      this.logger.w.debug(this.logger.f.Debug('Gateway', `Parsed push message: cmd=${pushData.cmd}, data=${pushData.data}, header=${JSON.stringify(pushData.header)}`));
 
       // 头部信息转换为Map格式
       const headerMap = getHeaderMap(pushData.header || {});
 
       // 根据请求ID创建专用日志记录器
       const reqId = headerMap.get('X-Req-Id') || '';
-      const logger = reqId ? new SDKLogger(reqId) : this.logger;
+      const logger = this.logger;
       
       // 检查是否缺少必需的追踪字段
       if (!reqId) {
-        this.logger.warn(`[Gateway] Received push without X-Req-Id - cmd: ${pushData.cmd}, data: ${pushData.data}`);
+        this.logger.w.warn(this.logger.f.Warn('Gateway', `Received push without X-Req-Id - cmd: ${pushData.cmd}, data: ${pushData.data}`));
       } else {
-        logger.debug(`[Gateway] Received push - cmd: ${pushData.cmd}, data: ${pushData.data}`);
+        logger.w.debug(logger.f.Debug('Gateway', `Received push - cmd: ${pushData.cmd}, data: ${pushData.data}`));
       }
 
       // 分发给所有订阅该频道的观察者
       const cmdCallbacks = this.callbacks.get(pushData.cmd);
       if (!cmdCallbacks || cmdCallbacks.size === 0) {
-        logger.warn(`[Gateway] No observers found for push command: ${pushData.cmd}`);
+        logger.w.warn(logger.f.Warn('Gateway', `No observers found for push command: ${pushData.cmd}`));
         return;
       }
 
-      logger.debug(`[Gateway] Dispatching push message to ${cmdCallbacks.size} observers for cmd: ${pushData.cmd}`);
+      logger.w.debug(logger.f.Debug('Gateway', `Dispatching push message to ${cmdCallbacks.size} observers for cmd: ${pushData.cmd}`));
       
       // 并发调用所有回调，避免阻塞
       const callbackPromises = Array.from(cmdCallbacks.entries()).map(async ([observerId, callback]) => {
         try {
           callback(pushData.cmd, pushData.data, headerMap);
-          logger.debug(`[Gateway] Observer '${observerId.description || 'anonymous'}' handled push message for cmd: ${pushData.cmd}`);
+          logger.w.debug(logger.f.Debug('Gateway', `Observer '${observerId.description || 'anonymous'}' handled push message for cmd: ${pushData.cmd}`));
         } catch (error) {
-          logger.error(`[Gateway] Observer '${observerId.description || 'anonymous'}' failed to handle push message for cmd: ${pushData.cmd}: ${error}`);
+          logger.w.error(logger.f.Error('Gateway', `Observer '${observerId.description || 'anonymous'}' failed to handle push message for cmd: ${pushData.cmd}: ${error}`));
         }
       });
       
@@ -313,15 +314,15 @@ export class StreamGatewayClient {
     // 设置连接断开处理器
     this.client.onPeerClosed = async (err: StmError) => {
       const timestamp = new Date().toISOString();
-      this.logger.warn(`[Gateway] Connection lost at ${timestamp}: ${err}`);
+      this.logger.w.warn(this.logger.f.Warn('Gateway', `Connection lost at ${timestamp}: ${err}`));
       
       // 分析错误代码，提供调试信息
       if (err.toString().includes('1006')) {
-        this.logger.warn('[Gateway] 1006: Abnormal connection closure - possible network/proxy issue');
+        this.logger.w.warn(this.logger.f.Warn('Gateway', `1006: Abnormal connection closure - possible network/proxy issue`));
       } else if (err.toString().includes('1001')) {
-        this.logger.warn('[Gateway] 1001: Server endpoint going down');
+        this.logger.w.warn(this.logger.f.Warn('Gateway', `1001: Server endpoint going down`));
       } else if (err.toString().includes('timeout')) {
-        this.logger.warn('[Gateway] Timeout: Connection timed out');
+        this.logger.w.warn(this.logger.f.Warn('Gateway', `Timeout: Connection timed out`));
       }
       
       
@@ -393,12 +394,12 @@ export class StreamGatewayClient {
     // 生成请求ID用于日志追踪
     const reqId = headers.get(X_REQ_ID) || this.getNextReqId();
     headers.set(X_REQ_ID, reqId);
-    const logger = new SDKLogger(reqId);
+    const logger = this.logger;
     
     try {
       const response = await this.send(`${this.rootUri}/Subscribe`, request, SubscribeResponse, headers);
       const observerName = observer.description || 'anonymous';
-      logger.info(`[Gateway] Subscription created for cmd '${cmd}' with observer '${observerName}'`);
+      logger.w.info(logger.f.Info('Gateway', `Subscription created for cmd '${cmd}' with observer '${observerName}'`));
       return response;
     } catch (error) {
       // 订阅失败时回滚本地状态
@@ -460,7 +461,7 @@ export class StreamGatewayClient {
     
     // 如果还有其他观察者订阅该频道，只需移除本地订阅
     if (cmdCallbacks.size > 0) {
-      this.logger.info(`[Gateway] Removed observer '${observerName}' from cmd '${cmd}' (${cmdCallbacks.size} remaining)`);
+      this.logger.w.info(this.logger.f.Info('Gateway', `Removed observer '${observerName}' from cmd '${cmd}' (${cmdCallbacks.size} remaining)`));
       const response = new UnsubscribeResponse();
       response.errMsg = null;
       return response;
@@ -472,9 +473,9 @@ export class StreamGatewayClient {
     // 生成请求ID用于日志追踪
     const reqId = headers.get(X_REQ_ID) || this.getNextReqId();
     headers.set(X_REQ_ID, reqId);
-    const logger = new SDKLogger(reqId);
+    const logger = this.logger;
     
-    logger.info(`[Gateway] Removed last observer for cmd '${cmd}', unsubscribing from server`);
+    logger.w.info(logger.f.Info('Gateway', `Removed last observer for cmd '${cmd}', unsubscribing from server`));
     
     const request = new UnsubscribeRequest();
     request.cmd = [cmd];
@@ -600,13 +601,13 @@ export class StreamGatewayClient {
     header.set(X_REQ_ID, reqId);
     header.set("api", api);
 
-    const logger = new SDKLogger(reqId);
+    const logger = this.logger;
 
     // 直接发送原始数据，不进行任何序列化处理
     const [res, err] = await this.client.Send(data, header);
     
     if (err) {
-      logger.error(`[Gateway] ${api} failed: ${err}`);
+      logger.w.error(logger.f.Error('Gateway', `${api} failed: ${err}`));
       throw err;
     }
 

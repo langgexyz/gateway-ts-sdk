@@ -13,7 +13,7 @@
   },
   "name": "gateway-ts-sdk",
   "version": "1.0.0",
-  "description": "TypeScript SDK for Stream Gateway WebSocket server",
+  "description": "TypeScript SDK for Gateway WebSocket server",
   "type": "module",
   "main": "dist/cjs/index.cjs",
   "module": "dist/esm/index.js",
@@ -60,7 +60,7 @@
     "universal",
     "isomorphic"
   ],
-  "author": "Stream Gateway Team",
+  "author": "Gateway Team",
   "license": "MIT",
   "files": [
     "dist/**/*",
@@ -69,7 +69,9 @@
     "package.json"
   ],
   "dependencies": {
-    "class-transformer": "^0.5.1",
+    "class-transformer": "^0.5.1"
+  },
+  "peerDependencies": {
     "ts-concurrency": "github:langgexyz/ts-concurrency#semver:^1.0.0",
     "ts-streamclient": "github:langgexyz/ts-streamclient#semver:^1.0.0",
     "ts-xutils": "github:langgexyz/ts-xutils#semver:^1.0.0"

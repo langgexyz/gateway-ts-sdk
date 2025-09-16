@@ -24,7 +24,7 @@ const TEST_SERVER_PORT = 3001;
 const HOOK_URL = `http://localhost:${TEST_SERVER_PORT}/hook`;
 const PROXY_TARGET_URL = `http://localhost:${TEST_SERVER_PORT}/api`;
 
-console.log('🚀 Stream Gateway SDK - Hook & Proxy 功能测试');
+console.log('🚀 Gateway SDK - Hook & Proxy 功能测试');
 console.log(`📦 SDK Version: 1.1.0`);
 console.log(`🔗 连接到: ${WS_URL} (${ENV_NAME})`);
 console.log('=====================================\n');
@@ -311,7 +311,7 @@ async function testProxyForwarding() {
     const getHeaders = new HeaderBuilder()
       .setProxy(`${PROXY_TARGET_URL}/users`, HttpMethod.GET)
       .setReqId('proxy-get-test')
-      .setHeader('X-Test-Client', 'stream-gateway-sdk')
+      .setHeader('X-Test-Client', 'gateway-sdk')
       .build();
     
     const getResult = await client.send('API/Proxy', {}, String, getHeaders);
@@ -332,7 +332,7 @@ async function testProxyForwarding() {
       .build();
     
     const postData = JSON.stringify({
-      message: 'Hello from Stream Gateway Proxy',
+      message: 'Hello from Gateway Proxy',
       timestamp: new Date().toISOString(),
       test: true
     });
@@ -351,7 +351,7 @@ async function testProxyForwarding() {
     const apiHeaders = new HeaderBuilder()
       .setProxy(`${PROXY_TARGET_URL}/status`, HttpMethod.GET)
       .setReqId('proxy-status-test')
-      .setHeader('User-Agent', 'Stream-Gateway-SDK/1.1.0')
+      .setHeader('User-Agent', 'Gateway-SDK/1.1.0')
       .build();
     
     const apiResult = await client.send('API/Proxy', {}, String, apiHeaders);

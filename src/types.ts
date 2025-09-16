@@ -1,5 +1,5 @@
 /**
- * Stream Gateway TypeScript SDK - Type Definitions
+ * Gateway TypeScript SDK - Type Definitions
  */
 
 // Core API Types
