@@ -12,11 +12,10 @@
     }
   },
   "name": "gateway-ts-sdk",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "TypeScript SDK for Gateway WebSocket server",
   "main": "dist/cjs/index.js",
   "module": "dist/esm/index.js",
-  "browser": "dist/umd/index.js",
   "types": "dist/types/index.d.ts",
   "exports": {
     ".": {
@@ -26,10 +25,10 @@
     }
   },
   "scripts": {
-    "build": "npm run build:cjs && npm run build:esm && npm run build:umd && npm run build:types",
+    "build": "npm run build:cjs && npm run build:esm && npm run build:types",
+    "prebuild": "npm run clean",
     "build:cjs": "tsc -p tsconfig.cjs.json",
     "build:esm": "tsc -p tsconfig.esm.json",
-    "build:umd": "tsc -p tsconfig.umd.json",
     "build:types": "tsc -p tsconfig.types.json",
     "clean": "rm -rf dist",
     "rebuild": "npm run clean && npm run build",
